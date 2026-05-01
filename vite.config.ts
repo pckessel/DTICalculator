@@ -8,7 +8,7 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  fmt: { ignorePatterns: ["src/routeTree.gen.ts"] },
+  fmt: { ignorePatterns: ["src/routeTree.gen.ts", "test-results/**", "dist/**"] },
   lint: { options: { typeAware: true, typeCheck: true } },
   test: {
     exclude: ["e2e/**", "node_modules/**"],
