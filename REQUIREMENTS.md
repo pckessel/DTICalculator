@@ -183,6 +183,27 @@ type LoanParams = {
   taxesInsuranceRate: number; // annual % of home value, e.g. 0.02
 };
 
+type SaleDetails = {
+  salePrice: number;
+  realtorFeePercent: number; // default 6
+  closingCosts: number; // default 10_000
+  remainingMortgageBalance: number; // user-entered
+};
+
+// An InvestmentProperty can optionally carry sale details.
+// When saleDetails is set, the property is considered "sold" within that scenario.
+type InvestmentProperty = {
+  id: string;
+  label: string;
+  purchasePrice: number;
+  cashToClose: number;
+  revenuePerMonth: number;
+  mortgagePlusTaxesInsurance: number;
+  monthlyExpenses: number;
+  revenueCountedByBank: number;
+  saleDetails?: SaleDetails; // present only when the property has been sold in a scenario
+};
+
 type Scenario = {
   id: string;
   name: string;
@@ -191,6 +212,8 @@ type Scenario = {
   debtItems: DebtItem[];
   investmentProperties: InvestmentProperty[];
   loanParams: LoanParams;
+  cashOnHand?: number; // snapshot of baseline cashOnHand at scenario creation
+  snapshotPropertyIds: string[]; // IDs of properties that existed at snapshot time (inherited, already purchased)
 };
 
 type AppState = {
@@ -199,6 +222,7 @@ type AppState = {
   debtItems: DebtItem[];
   investmentProperties: InvestmentProperty[];
   loanParams: LoanParams;
+  cashOnHand?: number; // optional; user-entered liquid capital
 
   // Scenarios (sandbox copies)
   scenarios: Scenario[];
@@ -293,6 +317,37 @@ annualCashFlow = monthlyCashFlow * 12
 cashOnCashReturn = annualCashFlow / p.cashToClose   // as a percentage
 ```
 
+### Net Sale Proceeds
+
+```
+realtorFeeAmount = salePrice * (realtorFeePercent / 100)
+netProceeds = salePrice - realtorFeeAmount - closingCosts - remainingMortgageBalance
+```
+
+`netProceeds` may be negative (underwater sale). Always display it; never clamp to zero.
+
+### Effective Cash on Hand (Scenario)
+
+Cash on Hand is a running balance that updates as properties are sold or purchased within a scenario. Inherited properties (those in `snapshotPropertyIds`) are treated as already-purchased; their `cashToClose` was spent before the scenario began and is **not** deducted again.
+
+```
+soldProceeds     = sum(netProceeds for each sold property in investmentProperties)
+newPurchaseCosts = sum(p.cashToClose for each p where p.id NOT IN snapshotPropertyIds AND p.saleDetails == null)
+effectiveCashOnHand = (scenario.cashOnHand ?? 0) + soldProceeds - newPurchaseCosts
+```
+
+This value is recomputed live whenever any sale detail or new property changes.
+
+### DTI and Income Adjustments for Sold Properties
+
+A sold property is excluded from all financial calculations — its debt and income both drop off:
+
+```
+// When computing totals, skip properties where saleDetails is set
+totalMonthlyDebt    = ... + sum(p.mortgagePlusTaxesInsurance for ACTIVE properties only)
+adjustedMonthlyIncome = ... + sum(p.revenuePerMonth * p.revenueCountedByBank for ACTIVE properties only)
+```
+
 ---
 
 ## Feature Specifications
@@ -369,6 +424,121 @@ Pinned or prominent at the bottom (or top) of the page. Shows:
 - **Save Scenario** button persists it to the store
 - **Compare to Baseline** button shows a side-by-side diff: income delta, debt delta, borrowing power delta
 - Scenarios can be deleted
+
+---
+
+## Feature Specifications — Cash on Hand & Sell Property
+
+### Cash on Hand Panel
+
+A new optional section on the Dashboard, positioned near the top (after Loan Parameters, before Income). Also present in the Scenario Sandbox.
+
+**Input:**
+
+- Single currency input: "Cash on Hand" with helper text: "Your liquid capital available to close on a property — down payment, closing costs, reserves."
+- Optional — leaving it blank disables all cash-related indicators.
+
+**Dashboard behavior:**
+
+- Entering a value saves it to the baseline `cashOnHand` immediately (auto-save, same as all baseline fields).
+
+**Scenario behavior:**
+
+- Scenarios snapshot `cashOnHand` from baseline at creation time.
+- The displayed value is `effectiveCashOnHand` (computed — see Calculations), not the raw stored value.
+- When a sale has occurred, show both: "Base: $50,000 · Adjusted: $150,000" so the user understands why the number changed.
+- The field is not directly editable in a scenario (it is derived). The user adjusts it on the Dashboard.
+
+**Cash to Close indicator on property cards:**
+When `cashOnHand` is set and the property has a `cashToClose` value, display an inline indicator on the property card next to the Cash to Close field:
+
+| Condition                            | Indicator                             |
+| ------------------------------------ | ------------------------------------- |
+| `cashToClose <= effectiveCashOnHand` | Green badge: "Covered · $X remaining" |
+| `cashToClose > effectiveCashOnHand`  | Amber/red badge: "Short by $X"        |
+
+The indicator updates live as the user types the `cashToClose` value or as scenario sales/purchases change the effective balance.
+
+**In Borrowing Power Summary:**
+
+- Add a "Cash on Hand" line showing the effective value.
+- In scenarios, show the delta vs baseline in parentheses (e.g., "+$100,000 from sales").
+
+---
+
+### Sell Property (Scenarios Only)
+
+The Sell Property action is available only within a Scenario sandbox — it never appears on the baseline Dashboard. Any property visible in a scenario (whether inherited from baseline or added within the scenario) can be sold.
+
+#### Trigger
+
+Each active property card in a scenario has a **"Sell Property"** button (secondary/ghost style, below the property inputs). Clicking it transitions the card into sale entry mode.
+
+#### Sale Entry Mode
+
+The card expands with a sale configuration form:
+
+| Field                          | Default | Notes                             |
+| ------------------------------ | ------- | --------------------------------- |
+| Sale Price                     | blank   | Required to show non-zero summary |
+| Realtor Fee (%)                | 6       | Editable                          |
+| Closing Costs ($)              | 10,000  | Editable                          |
+| Remaining Mortgage Balance ($) | blank   | Manually entered by user          |
+
+Below the form, a live summary panel updates as the user types:
+
+```
+Sale Price:                  $XXX,XXX
+  − Realtor Fee (6%):        −$XX,XXX
+  − Closing Costs:           −$XX,XXX
+  − Remaining Mortgage:      −$XXX,XXX
+  ─────────────────────────────────────
+  Net Proceeds:              $XX,XXX
+```
+
+Also display below the summary:
+
+- "Cash on Hand after this sale: $XXX,XXX" (using `effectiveCashOnHand` + this sale's net proceeds)
+- "DTI after this sale: X.X%"
+
+A **"Confirm Sale"** and a **"Cancel"** button sit below the summary. Cancel returns the card to normal property-editing mode. Confirm transitions the card to SOLD state.
+
+#### SOLD Card
+
+After confirming, the card transforms in place. It occupies the same position in the property list.
+
+**Visual design:**
+
+- A large, tilted "SOLD" badge — playful, high-contrast (hot pink or electric purple, rotated ~−6°, heavy font weight, slight drop shadow). Rubber-stamp aesthetic.
+- Card background subtly muted vs active cards (reduced opacity border, slight desaturation) to signal the property is no longer active.
+- Property label displayed as the card header.
+
+**Content:**
+
+- The same four sale fields (Sale Price, Realtor Fee %, Closing Costs, Remaining Mortgage) remain **fully editable** — adjusting any of them recalculates net proceeds, effective cash on hand, DTI, and borrowing power in real-time.
+- Net proceeds summary remains visible at all times.
+- A small "impact" section shows:
+  - "Net Proceeds: +$X added to Cash on Hand"
+  - "Monthly Debt: −$X/mo (mortgage removed)"
+  - "DTI: decreased by X%"
+  - "Borrowing Power: +$X"
+
+The SOLD card persists for the lifetime of the scenario — it is always shown and cannot be dismissed.
+
+#### Effect on Scenario Calculations
+
+Once a property's `saleDetails` is present:
+
+- Its `mortgagePlusTaxesInsurance` is excluded from `totalMonthlyDebt`.
+- Its `revenuePerMonth * revenueCountedByBank` is excluded from `adjustedMonthlyIncome`.
+- Its `netProceeds` is included in `effectiveCashOnHand`.
+- All downstream values (DTI, available cash, borrowing power) recalculate.
+
+This happens live during sale entry mode — the user sees the impact before confirming.
+
+#### Multiple Sales in One Scenario
+
+There is no limit on sales per scenario. Each sale's proceeds compound: selling Property A frees cash and DTI headroom that is immediately reflected when evaluating or adding Property C.
 
 ---
 
@@ -532,6 +702,22 @@ Smoke tests live in `e2e/smoke.test.ts`. They test the app in a real browser (Ch
 
 ---
 
+## Store Actions (Reference)
+
+New actions required for the Cash on Hand and Sell Property features:
+
+| Action                                                                   | Description                                                                 |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `setCashOnHand(amount \| undefined)`                                     | Set or clear baseline Cash on Hand                                          |
+| `setScenarioCashOnHand(scenarioId, amount \| undefined)`                 | Not needed — scenario cash on hand is always derived, never directly set    |
+| `sellScenarioProperty(scenarioId, propertyId, saleDetails)`              | Attach `saleDetails` to a property in a scenario                            |
+| `updateScenarioPropertySaleDetails(scenarioId, propertyId, saleDetails)` | Update sale details on an already-sold property (live editing of SOLD card) |
+| `unsellScenarioProperty(scenarioId, propertyId)`                         | Remove `saleDetails` from a property (Cancel in sale entry mode)            |
+
+When creating a scenario snapshot, the store must populate `snapshotPropertyIds` with the IDs of all `investmentProperties` at that moment.
+
+---
+
 ## Acceptance Criteria
 
 - [ ] Borrowing power calculation matches the spreadsheet formula for the same inputs
@@ -545,3 +731,14 @@ Smoke tests live in `e2e/smoke.test.ts`. They test the app in a real browser (Ch
 - [ ] `vp check` passes — TypeScript, linting, and formatting
 - [ ] `vp test` passes — all calculation unit tests
 - [ ] `vp run test:e2e` passes — all Playwright smoke tests
+- [ ] Cash on Hand value is optional and, when blank, disables all cash-related indicators
+- [ ] Effective Cash on Hand in a scenario = baseline cash + sale proceeds − new purchase costs
+- [ ] Inherited properties (snapshotPropertyIds) do not deduct from scenario Cash on Hand
+- [ ] Cash to Close indicator on a property card shows green "Covered" or red "Short by $X" based on effective cash on hand
+- [ ] Sell Property button is only visible in scenario sandbox, never on the Dashboard
+- [ ] Sale entry mode shows live net proceeds and post-sale DTI/cash on hand before confirming
+- [ ] SOLD card renders in the same position as the original property card
+- [ ] SOLD card sale fields are fully editable; all downstream values recalculate on change
+- [ ] Selling a property removes its mortgage from DTI and its rental income from adjusted income
+- [ ] Multiple properties can be sold in a single scenario; proceeds compound correctly
+- [ ] `computeNetProceeds` and `computeEffectiveCashOnHand` are covered by unit tests
