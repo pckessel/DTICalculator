@@ -14,6 +14,13 @@ export type DebtItem = {
   monthlyPayment: number;
 };
 
+export type SaleDetails = {
+  salePrice: number;
+  realtorFeePercent: number; // default 6
+  closingCosts: number; // default 10_000
+  remainingMortgageBalance: number;
+};
+
 export type InvestmentProperty = {
   id: string;
   label: string;
@@ -23,6 +30,7 @@ export type InvestmentProperty = {
   mortgagePlusTaxesInsurance: number;
   monthlyExpenses: number;
   revenueCountedByBank: number;
+  saleDetails?: SaleDetails;
 };
 
 export type LoanParams = {
@@ -41,6 +49,8 @@ export type Scenario = {
   debtItems: DebtItem[];
   investmentProperties: InvestmentProperty[];
   loanParams: LoanParams;
+  cashOnHand?: number;
+  snapshotPropertyIds?: string[];
 };
 
 const DEFAULT_LOAN_PARAMS: LoanParams = {
@@ -57,6 +67,7 @@ type AppState = {
   debtItems: DebtItem[];
   investmentProperties: InvestmentProperty[];
   loanParams: LoanParams;
+  cashOnHand?: number;
 
   // Scenarios
   scenarios: Scenario[];
@@ -76,6 +87,8 @@ type AppState = {
   removeInvestmentProperty: (id: string) => void;
 
   updateLoanParams: (updates: Partial<LoanParams>) => void;
+
+  setCashOnHand: (amount: number | undefined) => void;
 
   // Scenario actions
   createScenario: (name: string) => void;
@@ -105,6 +118,14 @@ type AppState = {
   removeScenarioProperty: (scenarioId: string, propId: string) => void;
 
   updateScenarioLoanParams: (scenarioId: string, updates: Partial<LoanParams>) => void;
+
+  sellScenarioProperty: (scenarioId: string, propertyId: string, saleDetails: SaleDetails) => void;
+  updateScenarioPropertySaleDetails: (
+    scenarioId: string,
+    propertyId: string,
+    saleDetails: SaleDetails,
+  ) => void;
+  unsellScenarioProperty: (scenarioId: string, propertyId: string) => void;
 };
 
 function newIncomeSource(): IncomeSource {
@@ -143,6 +164,7 @@ export const useStore = create<AppState>()(
       debtItems: [],
       investmentProperties: [],
       loanParams: { ...DEFAULT_LOAN_PARAMS },
+      cashOnHand: undefined,
       scenarios: [],
       activeScenarioId: null,
 
@@ -195,6 +217,8 @@ export const useStore = create<AppState>()(
           loanParams: { ...state.loanParams, ...updates },
         })),
 
+      setCashOnHand: (amount) => set({ cashOnHand: amount }),
+
       // Scenario actions
       createScenario: (name) => {
         const state = get();
@@ -208,6 +232,8 @@ export const useStore = create<AppState>()(
             ...p,
           })),
           loanParams: { ...state.loanParams },
+          cashOnHand: state.cashOnHand,
+          snapshotPropertyIds: state.investmentProperties.map((p) => p.id),
         };
         set((s) => ({
           scenarios: [...s.scenarios, scenario],
@@ -309,6 +335,39 @@ export const useStore = create<AppState>()(
           scenarios: updateScenarioById(state.scenarios, scenarioId, (s) => ({
             ...s,
             loanParams: { ...s.loanParams, ...updates },
+          })),
+        })),
+
+      sellScenarioProperty: (scenarioId, propertyId, saleDetails) =>
+        set((state) => ({
+          scenarios: updateScenarioById(state.scenarios, scenarioId, (s) => ({
+            ...s,
+            investmentProperties: s.investmentProperties.map((p) =>
+              p.id === propertyId ? { ...p, saleDetails } : p,
+            ),
+          })),
+        })),
+
+      updateScenarioPropertySaleDetails: (scenarioId, propertyId, saleDetails) =>
+        set((state) => ({
+          scenarios: updateScenarioById(state.scenarios, scenarioId, (s) => ({
+            ...s,
+            investmentProperties: s.investmentProperties.map((p) =>
+              p.id === propertyId ? { ...p, saleDetails } : p,
+            ),
+          })),
+        })),
+
+      unsellScenarioProperty: (scenarioId, propertyId) =>
+        set((state) => ({
+          scenarios: updateScenarioById(state.scenarios, scenarioId, (s) => ({
+            ...s,
+            investmentProperties: s.investmentProperties.map((p) => {
+              if (p.id !== propertyId) return p;
+              const { saleDetails: _removed, ...rest } = p;
+              void _removed;
+              return rest;
+            }),
           })),
         })),
     }),

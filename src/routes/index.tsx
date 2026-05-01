@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LoanParamsPanel } from "../components/LoanParamsPanel";
+import { CashOnHandPanel } from "../components/CashOnHandPanel";
 import { IncomeSection } from "../components/IncomeSection";
 import { DebtsSection } from "../components/DebtsSection";
 import { InvestmentPropertiesSection } from "../components/InvestmentPropertiesSection";
@@ -18,6 +19,7 @@ function Dashboard() {
       </div>
 
       <LoanParamsPanel />
+      <CashOnHandPanel />
       <IncomeSection />
       <DebtsSection />
       <InvestmentPropertiesSection />

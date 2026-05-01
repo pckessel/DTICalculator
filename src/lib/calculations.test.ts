@@ -4,8 +4,10 @@ import {
   computeAvailableMonthlyCash,
   computeBorrowingPower,
   computeDtiRatio,
+  computeEffectiveCashOnHand,
   computeMortgageFactor,
   computeMonthlyGrossIncome,
+  computeNetProceeds,
   computePropertyROI,
 } from "./calculations";
 import type { InvestmentProperty } from "../store/index";
@@ -89,4 +91,87 @@ test("computePropertyROI matches spreadsheet Cabin example", () => {
   expect(roi.monthlyCashFlow).toBeCloseTo(1133.33, 1);
   expect(roi.annualCashFlow).toBeCloseTo(13600, 0);
   expect(roi.cashOnCashReturn).toBeCloseTo(0.544, 2);
+});
+
+// 9. computeNetProceeds: salePrice=500_000, realtorFee=6%, closingCosts=10_000, remainingMortgage=300_000 → 160_000
+test("computeNetProceeds: 500k sale with 6% realtor fee, 10k closing, 300k mortgage → 160k", () => {
+  const result = computeNetProceeds({
+    salePrice: 500_000,
+    realtorFeePercent: 6,
+    closingCosts: 10_000,
+    remainingMortgageBalance: 300_000,
+  });
+  expect(result).toBe(160_000);
+});
+
+// 10. computeEffectiveCashOnHand: baseline cash=50_000, one sold property with netProceeds=100_000, no new purchases → 150_000
+test("computeEffectiveCashOnHand: base 50k + sold property proceeds 100k = 150k", () => {
+  const soldProperty: InvestmentProperty = {
+    id: "p1",
+    label: "Sold House",
+    purchasePrice: 400_000,
+    cashToClose: 80_000,
+    revenuePerMonth: 2000,
+    mortgagePlusTaxesInsurance: 1500,
+    monthlyExpenses: 200,
+    revenueCountedByBank: 0.75,
+    saleDetails: {
+      salePrice: 500_000,
+      realtorFeePercent: 6,
+      closingCosts: 10_000,
+      remainingMortgageBalance: 290_000,
+    },
+  };
+  // netProceeds = 500_000 - 30_000 - 10_000 - 290_000 = 170_000? No, let's use exact 100_000
+  // salePrice=500k, fee=6%→30k, closing=10k, mortgage=360k → 100k
+  const soldPropertyExact: InvestmentProperty = {
+    ...soldProperty,
+    saleDetails: {
+      salePrice: 500_000,
+      realtorFeePercent: 6,
+      closingCosts: 10_000,
+      remainingMortgageBalance: 360_000,
+    },
+  };
+  const result = computeEffectiveCashOnHand(50_000, [soldPropertyExact], ["p1"]);
+  expect(result).toBe(150_000);
+});
+
+// 11. computeEffectiveCashOnHand: base 50k + inherited sold property 100k proceeds + new unsold property cashToClose=30k → 120k
+test("computeEffectiveCashOnHand: base 50k + inherited sold 100k proceeds - new purchase 30k = 120k", () => {
+  const inheritedSoldProperty: InvestmentProperty = {
+    id: "p1",
+    label: "Inherited Property",
+    purchasePrice: 400_000,
+    cashToClose: 80_000,
+    revenuePerMonth: 2000,
+    mortgagePlusTaxesInsurance: 1500,
+    monthlyExpenses: 200,
+    revenueCountedByBank: 0.75,
+    // netProceeds = 500_000 - 30_000 - 10_000 - 360_000 = 100_000
+    saleDetails: {
+      salePrice: 500_000,
+      realtorFeePercent: 6,
+      closingCosts: 10_000,
+      remainingMortgageBalance: 360_000,
+    },
+  };
+  const newUnsoldProperty: InvestmentProperty = {
+    id: "p2",
+    label: "New Property",
+    purchasePrice: 300_000,
+    cashToClose: 30_000,
+    revenuePerMonth: 1500,
+    mortgagePlusTaxesInsurance: 1200,
+    monthlyExpenses: 150,
+    revenueCountedByBank: 0.75,
+  };
+  // snapshotPropertyIds has p1 (inherited), p2 is new (not in snapshot), not sold
+  // result = 50_000 + 100_000 - 30_000 = 120_000
+  const result = computeEffectiveCashOnHand(
+    50_000,
+    [inheritedSoldProperty, newUnsoldProperty],
+    ["p1"],
+  );
+  expect(result).toBe(120_000);
 });

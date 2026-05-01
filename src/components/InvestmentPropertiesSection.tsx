@@ -15,9 +15,13 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 
 type InvestmentPropertiesSectionProps = {
   scenarioId?: string;
+  effectiveCashOnHand?: number;
 };
 
-export function InvestmentPropertiesSection({ scenarioId }: InvestmentPropertiesSectionProps) {
+export function InvestmentPropertiesSection({
+  scenarioId,
+  effectiveCashOnHand: externalEffectiveCashOnHand,
+}: InvestmentPropertiesSectionProps) {
   const store = useStore();
 
   const scenario = scenarioId ? store.scenarios.find((s) => s.id === scenarioId) : null;
@@ -27,6 +31,10 @@ export function InvestmentPropertiesSection({ scenarioId }: InvestmentProperties
     : store.investmentProperties;
   const incomeSources = scenario ? scenario.incomeSources : store.incomeSources;
   const loanParams = scenario ? scenario.loanParams : store.loanParams;
+
+  // Effective cash on hand for cash-to-close indicator
+  // In scenario mode: use passed-in effective value; in baseline mode: use raw store cashOnHand
+  const effectiveCashOnHand = scenarioId ? externalEffectiveCashOnHand : store.cashOnHand;
 
   const adjustedIncome = computeAdjustedMonthlyIncome(incomeSources, investmentProperties);
   const mortgageFactor = computeMortgageFactor(loanParams.aprPercent, loanParams.loanTermYears);
@@ -138,6 +146,21 @@ export function InvestmentPropertiesSection({ scenarioId }: InvestmentProperties
                       onChange={(e) => numInput(prop, "cashToClose", e.target.value)}
                     />
                     <p className="text-xs text-gray-500">Typically 20% down + ~$10k closing</p>
+                    {effectiveCashOnHand !== undefined &&
+                      effectiveCashOnHand > 0 &&
+                      prop.cashToClose > 0 && (
+                        <p
+                          className={`text-xs font-medium ${
+                            prop.cashToClose <= effectiveCashOnHand
+                              ? "text-green-400"
+                              : "text-red-400"
+                          }`}
+                        >
+                          {prop.cashToClose <= effectiveCashOnHand
+                            ? `Covered · ${formatCurrency(effectiveCashOnHand - prop.cashToClose)} remaining`
+                            : `Short by ${formatCurrency(prop.cashToClose - effectiveCashOnHand)}`}
+                        </p>
+                      )}
                   </div>
 
                   <div className="space-y-1">

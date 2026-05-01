@@ -3,6 +3,7 @@ import {
   computeFinancialSummary,
   computeDebtItemEffect,
   computePropertyEffect,
+  computeEffectiveCashOnHand,
   formatCurrency,
   formatPercent,
 } from "../lib/calculations";
@@ -47,6 +48,22 @@ export function BorrowingPowerSummary({ scenarioId }: BorrowingPowerSummaryProps
   const tiRate = loanParams.taxesInsuranceRate;
 
   const isOverDti = summary.availableMonthlyCash <= 0;
+
+  // Cash on Hand display
+  const baselineCashOnHand = store.cashOnHand;
+  const effectiveCashOnHand = scenario
+    ? computeEffectiveCashOnHand(
+        scenario.cashOnHand,
+        scenario.investmentProperties,
+        scenario.snapshotPropertyIds ?? [],
+      )
+    : baselineCashOnHand;
+  const showCashOnHand = effectiveCashOnHand !== undefined && effectiveCashOnHand !== null;
+  const cashDelta = scenario
+    ? effectiveCashOnHand !== undefined && baselineCashOnHand !== undefined
+      ? effectiveCashOnHand - baselineCashOnHand
+      : undefined
+    : undefined;
 
   return (
     <section className="mb-8">
@@ -102,6 +119,26 @@ export function BorrowingPowerSummary({ scenarioId }: BorrowingPowerSummaryProps
             </p>
             <p className="text-xs text-gray-600">/month</p>
           </div>
+          {showCashOnHand && (
+            <div className="col-span-2 text-center sm:col-span-3">
+              <p className="text-xs text-gray-500">Cash on Hand</p>
+              <p className="font-mono text-xl font-bold text-green-400">
+                {formatCurrency(effectiveCashOnHand!)}
+                {cashDelta !== undefined && cashDelta !== 0 && (
+                  <span
+                    className={cn(
+                      "ml-2 text-sm font-medium",
+                      cashDelta > 0 ? "text-green-300" : "text-red-400",
+                    )}
+                  >
+                    ({cashDelta > 0 ? "+" : ""}
+                    {formatCurrency(cashDelta)})
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-gray-600">liquid capital</p>
+            </div>
+          )}
         </div>
 
         {/* Waterfall breakdown */}

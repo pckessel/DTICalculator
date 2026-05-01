@@ -1,4 +1,10 @@
-import type { DebtItem, IncomeSource, InvestmentProperty, LoanParams } from "../store/index";
+import type {
+  DebtItem,
+  IncomeSource,
+  InvestmentProperty,
+  LoanParams,
+  SaleDetails,
+} from "../store/index";
 
 export function computeMortgageFactor(aprPercent: number, loanTermYears: number): number {
   const i = aprPercent / 100 / 12;
@@ -113,6 +119,31 @@ export type FinancialSummary = {
   mortgageFactor: number;
 };
 
+export function computeNetProceeds(saleDetails: SaleDetails): number {
+  const realtorFeeAmount = saleDetails.salePrice * (saleDetails.realtorFeePercent / 100);
+  return (
+    saleDetails.salePrice -
+    realtorFeeAmount -
+    saleDetails.closingCosts -
+    saleDetails.remainingMortgageBalance
+  );
+}
+
+export function computeEffectiveCashOnHand(
+  baseCashOnHand: number | undefined,
+  investmentProperties: InvestmentProperty[],
+  snapshotPropertyIds: string[],
+): number {
+  const base = baseCashOnHand ?? 0;
+  const soldProceeds = investmentProperties
+    .filter((p) => p.saleDetails != null)
+    .reduce((sum, p) => sum + computeNetProceeds(p.saleDetails!), 0);
+  const newPurchaseCosts = investmentProperties
+    .filter((p) => !snapshotPropertyIds.includes(p.id) && p.saleDetails == null)
+    .reduce((sum, p) => sum + p.cashToClose, 0);
+  return base + soldProceeds - newPurchaseCosts;
+}
+
 export function computeFinancialSummary(
   incomeSources: IncomeSource[],
   debtItems: DebtItem[],
@@ -121,8 +152,10 @@ export function computeFinancialSummary(
 ): FinancialSummary {
   const mortgageFactor = computeMortgageFactor(loanParams.aprPercent, loanParams.loanTermYears);
   const monthlyGrossIncome = computeMonthlyGrossIncome(incomeSources);
-  const adjustedMonthlyIncome = computeAdjustedMonthlyIncome(incomeSources, investmentProperties);
-  const totalMonthlyDebt = computeTotalMonthlyDebt(debtItems, investmentProperties);
+  // Filter out sold properties so their rental income and mortgage debt are excluded
+  const activeProperties = investmentProperties.filter((p) => !p.saleDetails);
+  const adjustedMonthlyIncome = computeAdjustedMonthlyIncome(incomeSources, activeProperties);
+  const totalMonthlyDebt = computeTotalMonthlyDebt(debtItems, activeProperties);
   const dtiRatio = computeDtiRatio(adjustedMonthlyIncome, totalMonthlyDebt);
   const availableMonthlyCash = computeAvailableMonthlyCash(
     adjustedMonthlyIncome,

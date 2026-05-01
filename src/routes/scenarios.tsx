@@ -2,11 +2,12 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Trash2, ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 import { useStore } from "../store/index";
-import { computeFinancialSummary } from "../lib/calculations";
+import { computeFinancialSummary, computeEffectiveCashOnHand } from "../lib/calculations";
 import { formatCurrency } from "../lib/calculations";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { LoanParamsPanel } from "../components/LoanParamsPanel";
+import { CashOnHandPanel } from "../components/CashOnHandPanel";
 import { IncomeSection } from "../components/IncomeSection";
 import { DebtsSection } from "../components/DebtsSection";
 import { InvestmentPropertiesSection } from "../components/InvestmentPropertiesSection";
@@ -50,6 +51,12 @@ function ScenariosPage() {
     const incomeDelta =
       scenarioSummary.adjustedMonthlyIncome - baselineSummary.adjustedMonthlyIncome;
     const debtDelta = scenarioSummary.totalMonthlyDebt - baselineSummary.totalMonthlyDebt;
+
+    const effectiveCashOnHand = computeEffectiveCashOnHand(
+      activeScenario.cashOnHand,
+      activeScenario.investmentProperties,
+      activeScenario.snapshotPropertyIds ?? [],
+    );
 
     return (
       <div>
@@ -113,9 +120,13 @@ function ScenariosPage() {
 
         {/* Scenario sandbox - same layout as dashboard */}
         <LoanParamsPanel scenarioId={activeScenario.id} />
+        <CashOnHandPanel scenarioId={activeScenario.id} effectiveCashOnHand={effectiveCashOnHand} />
         <IncomeSection scenarioId={activeScenario.id} />
         <DebtsSection scenarioId={activeScenario.id} />
-        <InvestmentPropertiesSection scenarioId={activeScenario.id} />
+        <InvestmentPropertiesSection
+          scenarioId={activeScenario.id}
+          effectiveCashOnHand={effectiveCashOnHand}
+        />
         <BorrowingPowerSummary scenarioId={activeScenario.id} />
       </div>
     );
