@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "typescript/no-require-imports": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["src/routeTree.gen.ts"],
+      "rules": {}
+    }
+  ],
+  "ignorePatterns": ["src/routeTree.gen.ts"]
+}

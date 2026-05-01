@@ -10,9 +10,28 @@
     "test:e2e": "playwright test",
     "prepare": "vp config"
   },
+  "dependencies": {
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tanstack/react-router": "^1.169.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.4",
+    "zustand": "^5.0.12"
+  },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tanstack/router-devtools": "^1.166.13",
+    "@tanstack/router-plugin": "^1.167.31",
     "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~6.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"
