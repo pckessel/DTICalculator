@@ -1,22 +1,23 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { cn } from "../lib/cn";
 
-export const DTI_SLIDER_MIN = 10;
-export const DTI_SLIDER_MAX = 50;
+export const DTI_MIN = 10;
+// 45% = Fannie Mae / Freddie Mac manual-underwriting ceiling for conventional conforming loans
+export const DTI_MAX = 45;
 
 // Zone boundaries (research-backed):
 //   ≤36% — Safe (classic 28/36 rule; FIRE community target)
 //   36–43% — Moderate (standard lender comfort zone)
-//   >43% — Aggressive (near Fannie Mae's automated 45% ceiling; 50% practical max)
+//   >43% — Aggressive (at the conventional ceiling; rare approvals only)
 const GREEN_END = 36;
 const ORANGE_END = 43;
 
 function dtiToTrackPct(val: number): number {
-  return ((val - DTI_SLIDER_MIN) / (DTI_SLIDER_MAX - DTI_SLIDER_MIN)) * 100;
+  return ((val - DTI_MIN) / (DTI_MAX - DTI_MIN)) * 100;
 }
 
-const GREEN_STOP = dtiToTrackPct(GREEN_END); // 65%
-const ORANGE_STOP = dtiToTrackPct(ORANGE_END); // 82.5%
+const GREEN_STOP = dtiToTrackPct(GREEN_END); // ~74.3%
+const ORANGE_STOP = dtiToTrackPct(ORANGE_END); // ~94.3%
 
 type Zone = "safe" | "moderate" | "aggressive";
 
@@ -26,71 +27,38 @@ export function getDtiZone(value: number): Zone {
   return "aggressive";
 }
 
-const ZONE_META: Record<Zone, { label: string; textCls: string; borderCls: string; hex: string }> =
+const ZONE_META: Record<Zone, { label: string; textCls: string; borderCls: string; glow: string }> =
   {
     safe: {
       label: "Safe",
       textCls: "text-green-400",
       borderCls: "border-green-400",
-      hex: "#4ade80",
+      glow: "#4ade8040",
     },
     moderate: {
       label: "Moderate",
       textCls: "text-amber-400",
       borderCls: "border-amber-400",
-      hex: "#fbbf24",
+      glow: "#fbbf2440",
     },
     aggressive: {
       label: "Aggressive",
       textCls: "text-red-400",
       borderCls: "border-red-400",
-      hex: "#f87171",
+      glow: "#f8717140",
     },
   };
 
 type DtiSliderProps = {
-  target: number;
-  hardMax: number;
-  onTargetChange: (val: number) => void;
-  onHardMaxChange: (val: number) => void;
+  value: number;
+  onChange: (val: number) => void;
   instanceId: string;
 };
 
-export function DtiSlider({
-  target,
-  hardMax,
-  onTargetChange,
-  onHardMaxChange,
-  instanceId,
-}: DtiSliderProps) {
-  const safeTarget = Math.max(DTI_SLIDER_MIN, Math.min(DTI_SLIDER_MAX, target));
-  const safeHardMax = Math.max(DTI_SLIDER_MIN, Math.min(DTI_SLIDER_MAX, hardMax));
-
-  const targetZone = getDtiZone(safeTarget);
-  const hardMaxZone = getDtiZone(safeHardMax);
-  const targetMeta = ZONE_META[targetZone];
-  const hardMaxMeta = ZONE_META[hardMaxZone];
-
-  function handleSliderChange([newTarget, newHardMax]: number[]) {
-    if (newTarget !== safeTarget) onTargetChange(newTarget);
-    if (newHardMax !== safeHardMax) onHardMaxChange(newHardMax);
-  }
-
-  function handleTargetInput(raw: string) {
-    const n = parseInt(raw, 10);
-    if (!isNaN(n)) {
-      const clamped = Math.max(DTI_SLIDER_MIN, Math.min(n, safeHardMax - 1));
-      onTargetChange(clamped);
-    }
-  }
-
-  function handleHardMaxInput(raw: string) {
-    const n = parseInt(raw, 10);
-    if (!isNaN(n)) {
-      const clamped = Math.max(safeTarget + 1, Math.min(n, DTI_SLIDER_MAX));
-      onHardMaxChange(clamped);
-    }
-  }
+export function DtiSlider({ value, onChange, instanceId }: DtiSliderProps) {
+  const safe = Math.max(DTI_MIN, Math.min(DTI_MAX, value));
+  const zone = getDtiZone(safe);
+  const meta = ZONE_META[zone];
 
   const trackGradient = [
     `#22c55e 0%`,
@@ -102,70 +70,49 @@ export function DtiSlider({
   ].join(", ");
 
   return (
-    <div className="space-y-3">
-      {/* Value labels */}
-      <div className="flex items-end justify-between">
-        <div className="space-y-0.5">
-          <p className="text-xs text-gray-500">Your DTI Target</p>
-          <p className={cn("font-mono text-lg font-bold leading-none", targetMeta.textCls)}>
-            {safeTarget}%
-            <span className="ml-2 text-xs font-normal opacity-80">{targetMeta.label}</span>
-          </p>
-        </div>
-        <div className="space-y-0.5 text-right">
-          <p className="text-xs text-gray-500">Lender Hard Max</p>
-          <p className={cn("font-mono text-base font-semibold leading-none", hardMaxMeta.textCls)}>
-            {safeHardMax}%
-            <span className="ml-1 text-xs font-normal opacity-80">{hardMaxMeta.label}</span>
-          </p>
-        </div>
+    <div className="space-y-3" id={`dti-slider-${instanceId}`}>
+      {/* Live value display */}
+      <div className="flex items-baseline gap-2">
+        <span
+          className={cn("font-mono text-3xl font-black tabular-nums leading-none", meta.textCls)}
+        >
+          {safe}%
+        </span>
+        <span className={cn("text-sm font-medium", meta.textCls)}>{meta.label}</span>
       </div>
 
-      {/* Dual-thumb gradient slider */}
+      {/* Gradient single-thumb slider */}
       <SliderPrimitive.Root
         className="relative flex w-full touch-none select-none items-center"
-        min={DTI_SLIDER_MIN}
-        max={DTI_SLIDER_MAX}
+        min={DTI_MIN}
+        max={DTI_MAX}
         step={1}
-        value={[safeTarget, safeHardMax]}
-        onValueChange={handleSliderChange}
-        minStepsBetweenThumbs={1}
+        value={[safe]}
+        onValueChange={([val]) => onChange(val)}
+        aria-labelledby={`dti-slider-${instanceId}`}
       >
         <SliderPrimitive.Track
-          className="relative h-2 w-full grow overflow-hidden rounded-full"
+          className="relative h-2.5 w-full grow overflow-hidden rounded-full"
           style={{ background: `linear-gradient(to right, ${trackGradient})` }}
         >
-          {/* Translucent overlay between the two thumbs (buffer zone) */}
-          <SliderPrimitive.Range className="absolute h-full bg-white/10" />
+          <SliderPrimitive.Range className="absolute h-full bg-black/20" />
         </SliderPrimitive.Track>
 
-        {/* Target thumb — larger, solid fill */}
         <SliderPrimitive.Thumb
           className={cn(
-            "block h-5 w-5 rounded-full border-2 bg-gray-900 shadow-lg transition-colors",
+            "block h-5 w-5 rounded-full border-2 bg-gray-900 shadow-lg transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-950",
             "disabled:pointer-events-none disabled:opacity-50",
-            targetMeta.borderCls,
+            meta.borderCls,
           )}
-          style={{ boxShadow: `0 0 0 3px ${targetMeta.hex}30` }}
+          style={{ boxShadow: `0 0 0 4px ${meta.glow}` }}
           aria-label="DTI target"
-        />
-
-        {/* Hard-max thumb — slightly smaller, outline only */}
-        <SliderPrimitive.Thumb
-          className={cn(
-            "block h-4 w-4 rounded-full border-2 bg-gray-900 shadow transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-950",
-            "disabled:pointer-events-none disabled:opacity-50",
-            hardMaxMeta.borderCls,
-          )}
-          aria-label="Hard max DTI"
         />
       </SliderPrimitive.Root>
 
-      {/* Track tick labels */}
-      <div className="relative h-4 text-xs text-gray-600">
-        <span className="absolute left-0">{DTI_SLIDER_MIN}%</span>
+      {/* Tick labels */}
+      <div className="relative h-4 select-none text-xs">
+        <span className="absolute left-0 text-gray-600">{DTI_MIN}%</span>
         <span
           className="absolute -translate-x-1/2 text-green-600/60"
           style={{ left: `${GREEN_STOP}%` }}
@@ -178,10 +125,10 @@ export function DtiSlider({
         >
           43
         </span>
-        <span className="absolute right-0">{DTI_SLIDER_MAX}%</span>
+        <span className="absolute right-0 text-gray-600">{DTI_MAX}%</span>
       </div>
 
-      {/* Legend */}
+      {/* Zone legend */}
       <div className="flex flex-wrap gap-3 text-xs">
         <span className="flex items-center gap-1 text-green-500/80">
           <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
@@ -195,67 +142,8 @@ export function DtiSlider({
           <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
           &gt;43% Aggressive
         </span>
+        <span className="ml-auto text-gray-600">45% = conventional ceiling</span>
       </div>
-
-      {/* Override inputs */}
-      <div className="flex gap-4 pt-1">
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor={`dti-target-${instanceId}`}
-            className="text-xs text-gray-500 whitespace-nowrap"
-          >
-            Target
-          </label>
-          <div className="flex items-center gap-1">
-            <input
-              id={`dti-target-${instanceId}`}
-              type="number"
-              min={DTI_SLIDER_MIN}
-              max={safeHardMax - 1}
-              step={1}
-              value={safeTarget}
-              onChange={(e) => handleTargetInput(e.target.value)}
-              className={cn(
-                "w-14 rounded-md border bg-gray-900 px-2 py-1 text-right font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500",
-                targetMeta.borderCls,
-                targetMeta.textCls,
-              )}
-            />
-            <span className="text-xs text-gray-500">%</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor={`dti-hardmax-${instanceId}`}
-            className="text-xs text-gray-500 whitespace-nowrap"
-          >
-            Hard Max
-          </label>
-          <div className="flex items-center gap-1">
-            <input
-              id={`dti-hardmax-${instanceId}`}
-              type="number"
-              min={safeTarget + 1}
-              max={DTI_SLIDER_MAX}
-              step={1}
-              value={safeHardMax}
-              onChange={(e) => handleHardMaxInput(e.target.value)}
-              className={cn(
-                "w-14 rounded-md border bg-gray-900 px-2 py-1 text-right font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500",
-                hardMaxMeta.borderCls,
-                hardMaxMeta.textCls,
-              )}
-            />
-            <span className="text-xs text-gray-500">%</span>
-          </div>
-        </div>
-      </div>
-
-      <p className="text-xs text-gray-600">
-        Most lenders approve up to 45%. 40% target gives a comfortable buffer. The FIRE community
-        targets ≤36%.
-      </p>
     </div>
   );
 }

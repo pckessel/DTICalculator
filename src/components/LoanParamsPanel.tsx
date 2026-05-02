@@ -143,10 +143,8 @@ export function LoanParamsPanel({ scenarioId }: LoanParamsPanelProps) {
               <Label>DTI Target Range</Label>
               <DtiSlider
                 instanceId={scenarioId ?? "base"}
-                target={loanParams.maxDtiPercent}
-                hardMax={loanParams.hardMaxDtiPercent}
-                onTargetChange={(val) => update("maxDtiPercent", String(val))}
-                onHardMaxChange={(val) => update("hardMaxDtiPercent", String(val))}
+                value={loanParams.maxDtiPercent}
+                onChange={(val) => update("maxDtiPercent", String(val))}
               />
             </div>
 

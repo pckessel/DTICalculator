@@ -37,7 +37,6 @@ export type LoanParams = {
   aprPercent: number;
   loanTermYears: number;
   maxDtiPercent: number;
-  hardMaxDtiPercent: number;
   taxesInsuranceRate: number;
 };
 
@@ -57,7 +56,6 @@ const DEFAULT_LOAN_PARAMS: LoanParams = {
   aprPercent: 7.0,
   loanTermYears: 30,
   maxDtiPercent: 40,
-  hardMaxDtiPercent: 45,
   taxesInsuranceRate: 2.0,
 };
 
