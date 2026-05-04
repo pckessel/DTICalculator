@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
+import { InfoTooltip } from "./InfoTooltip";
 import { useStore, type InvestmentProperty, type SaleDetails } from "../store/index";
 import {
   computePropertyROI,
@@ -446,9 +447,12 @@ export function InvestmentPropertiesSection({
                   </div>
 
                   <div className="space-y-1">
-                    <Label>
-                      Bank Rental Income % ({Math.round(prop.revenueCountedByBank * 100)}%)
-                    </Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label>
+                        Bank Rental Income % ({Math.round(prop.revenueCountedByBank * 100)}%)
+                      </Label>
+                      <InfoTooltip text="Most lenders only count 70–75% of rental income toward your qualifying income to account for vacancies and maintenance. Check with your specific lender — some use 75%, others 70%." />
+                    </div>
                     <Input
                       type="number"
                       min="0"
@@ -458,9 +462,6 @@ export function InvestmentPropertiesSection({
                       value={Math.round(prop.revenueCountedByBank * 100)}
                       onChange={(e) => numInput(prop, "revenueCountedByBank", e.target.value, 100)}
                     />
-                    <p className="text-xs text-gray-500">
-                      Most lenders count 70–75% of rental income.
-                    </p>
                   </div>
                 </div>
 

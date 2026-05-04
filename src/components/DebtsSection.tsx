@@ -1,4 +1,5 @@
 import { Trash2, Plus } from "lucide-react";
+import { InfoTooltip } from "./InfoTooltip";
 import { useStore, type DebtItem } from "../store/index";
 import {
   computeAdjustedMonthlyIncome,
@@ -60,7 +61,10 @@ export function DebtsSection({ scenarioId }: DebtsSectionProps) {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-200">Monthly Debts</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-lg font-semibold text-gray-200">Monthly Debts</h2>
+          <InfoTooltip text="Include debts that show up on your credit report or that you'd have to disclose to a lender — car loans, student loans, credit card minimums, personal loans, other mortgages. Skip variable day-to-day expenses like food, gas, subscriptions, and entertainment." />
+        </div>
         <Button variant="outline" size="sm" onClick={addDebt}>
           <Plus size={14} />
           Add Debt

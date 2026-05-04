@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
 import { DtiSlider } from "./DtiSlider";
+import { InfoTooltip } from "./InfoTooltip";
 import { useMortgageRate } from "../hooks/useMortgageRate";
 
 type LoanParamsPanelProps = {
@@ -140,7 +141,10 @@ export function LoanParamsPanel({ scenarioId }: LoanParamsPanelProps) {
 
             {/* DTI Range — dual-thumb gradient slider */}
             <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-              <Label>DTI Target Range</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>DTI Target Range</Label>
+                <InfoTooltip text="Most lenders approve up to 45%. Setting your target at 40% gives you a comfortable buffer and leaves room for the unexpected." />
+              </div>
               <DtiSlider
                 instanceId={scenarioId ?? "base"}
                 value={loanParams.maxDtiPercent}
@@ -149,7 +153,10 @@ export function LoanParamsPanel({ scenarioId }: LoanParamsPanelProps) {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor={`ti-${scenarioId ?? "base"}`}>Taxes & Insurance Rate (%)</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor={`ti-${scenarioId ?? "base"}`}>Taxes & Insurance Rate (%)</Label>
+                <InfoTooltip text="Rule of thumb: 2–3% of the home's value per year covers property taxes and homeowner's insurance. Higher in states like Texas or New Jersey, lower in states like Hawaii. Adjust for your market." />
+              </div>
               <Input
                 id={`ti-${scenarioId ?? "base"}`}
                 type="number"
@@ -158,9 +165,6 @@ export function LoanParamsPanel({ scenarioId }: LoanParamsPanelProps) {
                 value={loanParams.taxesInsuranceRate}
                 onChange={(e) => update("taxesInsuranceRate", e.target.value)}
               />
-              <p className="text-xs text-gray-500">
-                Rule of thumb: 2–3% of home value per year. Adjust for your market.
-              </p>
             </div>
           </div>
         </div>

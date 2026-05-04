@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { cn } from "../lib/cn";
+import { InfoTooltip } from "./InfoTooltip";
 
 type IncomeSectionProps = {
   scenarioId?: string;
@@ -51,7 +52,10 @@ export function IncomeSection({ scenarioId }: IncomeSectionProps) {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-gray-200">Income</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="text-lg font-semibold text-gray-200">Income</h2>
+          <InfoTooltip text="Enter income that's verifiable and documented on your tax returns — salary, W-2 wages, self-employment income reported on Schedule C. Banks need a paper trail. Side cash or undocumented income generally won't count." />
+        </div>
         <div className="flex items-center gap-2">
           {/* Annual / Monthly toggle */}
           <div className="flex rounded-md border border-gray-700 text-xs overflow-hidden">
