@@ -1,8 +1,7 @@
 import { useStore } from "../store/index";
 import {
   computeFinancialSummary,
-  computeDebtItemEffect,
-  computePropertyEffect,
+  computeWaterfallRows,
   computeEffectiveCashOnHand,
   formatCurrency,
   formatPercent,
@@ -43,9 +42,6 @@ export function BorrowingPowerSummary({ scenarioId }: BorrowingPowerSummaryProps
     investmentProperties,
     loanParams,
   );
-
-  const { mortgageFactor } = summary;
-  const tiRate = loanParams.taxesInsuranceRate;
 
   const isOverDti = summary.availableMonthlyCash <= 0;
 
@@ -142,76 +138,137 @@ export function BorrowingPowerSummary({ scenarioId }: BorrowingPowerSummaryProps
         </div>
 
         {/* Waterfall breakdown */}
-        {(debtItems.length > 0 || investmentProperties.length > 0) && (
+        {(debtItems.length > 0 || investmentProperties.some((p) => !p.saleDetails)) && (
           <div className="border-t border-gray-800 pt-4">
             <p className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-500">
-              Impact Breakdown
+              Borrowing Power Breakdown
             </p>
-            <div className="space-y-2">
-              {debtItems.map((debt) => {
-                if (debt.monthlyPayment === 0) return null;
-                const effect = computeDebtItemEffect(
-                  debt.monthlyPayment,
-                  summary.adjustedMonthlyIncome,
-                  mortgageFactor,
-                  tiRate,
-                );
-                return (
-                  <div key={debt.id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">{debt.label || "Debt"}</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-600">
-                        {formatCurrency(debt.monthlyPayment)}/mo
-                      </span>
-                      <span className="font-mono text-xs text-red-400">
-                        +{formatPercent(effect.dtiDelta)} DTI
-                      </span>
-                      <span className="font-mono text-sm font-medium text-red-400">
-                        {formatCurrency(effect.borrowingPowerDelta)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
 
-              {investmentProperties.map((prop) => {
-                const effect = computePropertyEffect(
-                  prop,
-                  summary.adjustedMonthlyIncome,
-                  mortgageFactor,
-                  tiRate,
-                );
-                const isPositive = effect.borrowingPowerDelta >= 0;
-                return (
-                  <div key={prop.id} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">{prop.label || "Property"}</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-gray-600">
-                        net {formatCurrency(-effect.cashDelta)}/mo
-                      </span>
-                      <span
-                        className={cn(
-                          "font-mono text-xs",
-                          isPositive ? "text-green-400" : "text-red-400",
-                        )}
-                      >
-                        {effect.dtiDelta > 0 ? "+" : ""}
-                        {formatPercent(effect.dtiDelta)} DTI
-                      </span>
-                      <span
-                        className={cn(
-                          "font-mono text-sm font-medium",
-                          isPositive ? "text-green-400" : "text-red-400",
-                        )}
-                      >
-                        {isPositive ? "+" : ""}
-                        {formatCurrency(effect.borrowingPowerDelta)}
-                      </span>
-                    </div>
+            {(() => {
+              const { startBP, rows } = computeWaterfallRows(
+                incomeSources,
+                debtItems,
+                investmentProperties,
+                loanParams,
+              );
+
+              return (
+                <div className="text-sm">
+                  {/* Column headers — hidden on mobile */}
+                  <div className="mb-1 hidden grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 text-xs font-medium uppercase tracking-wider text-gray-600 sm:grid">
+                    <span>Item</span>
+                    <span className="text-right">Net/mo</span>
+                    <span className="text-right">DTI</span>
+                    <span className="text-right">Change</span>
+                    <span className="text-right">Running Total</span>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Starting power row */}
+                  <div className="mb-1 grid grid-cols-[1fr_auto] gap-x-4 border-b border-gray-800 pb-2 sm:grid-cols-[1fr_auto_auto_auto_auto]">
+                    <span className="text-gray-400">Wage Income Only</span>
+                    <span className="hidden sm:block" />
+                    <span className="hidden sm:block" />
+                    <span className="hidden sm:block" />
+                    <span className="font-mono font-semibold text-gray-300 text-right">
+                      {formatCurrency(startBP)}
+                    </span>
+                  </div>
+
+                  {/* Debt rows */}
+                  {rows.filter((r) => r.type === "debt").length > 0 && (
+                    <div className="space-y-1 pb-2">
+                      {rows
+                        .filter((r) => r.type === "debt")
+                        .map((row) => (
+                          <div
+                            key={row.id}
+                            className="grid grid-cols-[1fr_auto] items-center gap-x-4 sm:grid-cols-[1fr_auto_auto_auto_auto]"
+                          >
+                            <span className="truncate text-gray-400">{row.label}</span>
+                            <span className="hidden font-mono text-xs text-red-500/80 text-right sm:block">
+                              −{formatCurrency(row.netMonthlyCost)}/mo
+                            </span>
+                            <span className="hidden font-mono text-xs text-red-500/80 text-right sm:block">
+                              +{formatPercent(row.dtiDelta)}
+                            </span>
+                            <span className="font-mono text-xs font-medium text-red-400 text-right">
+                              {formatCurrency(row.bpDelta)}
+                            </span>
+                            <span className="font-mono text-xs text-gray-500 text-right">
+                              {formatCurrency(row.runningBP)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Property rows */}
+                  {rows.filter((r) => r.type === "property").length > 0 && (
+                    <div className="space-y-1 border-t border-gray-800 pt-2 pb-2">
+                      {rows
+                        .filter((r) => r.type === "property")
+                        .map((row) => {
+                          const pos = row.bpDelta >= 0;
+                          return (
+                            <div
+                              key={row.id}
+                              className="grid grid-cols-[1fr_auto] items-center gap-x-4 sm:grid-cols-[1fr_auto_auto_auto_auto]"
+                            >
+                              <span className="truncate text-gray-400">{row.label}</span>
+                              <span
+                                className={cn(
+                                  "hidden font-mono text-xs text-right sm:block",
+                                  pos ? "text-green-500/80" : "text-red-500/80",
+                                )}
+                              >
+                                {row.netMonthlyCost >= 0 ? "−" : "+"}
+                                {formatCurrency(Math.abs(row.netMonthlyCost))}/mo net
+                              </span>
+                              <span
+                                className={cn(
+                                  "hidden font-mono text-xs text-right sm:block",
+                                  pos ? "text-green-500/80" : "text-red-500/80",
+                                )}
+                              >
+                                {row.dtiDelta >= 0 ? "+" : ""}
+                                {formatPercent(row.dtiDelta)}
+                              </span>
+                              <span
+                                className={cn(
+                                  "font-mono text-xs font-medium text-right",
+                                  pos ? "text-green-400" : "text-red-400",
+                                )}
+                              >
+                                {pos ? "+" : ""}
+                                {formatCurrency(row.bpDelta)}
+                              </span>
+                              <span className="font-mono text-xs text-gray-500 text-right">
+                                {formatCurrency(row.runningBP)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Final row */}
+                  <div className="mt-1 grid grid-cols-[1fr_auto] items-center gap-x-4 border-t border-gray-700 pt-2 sm:grid-cols-[1fr_auto_auto_auto_auto]">
+                    <span className="font-medium text-gray-200">Your Borrowing Power</span>
+                    <span className="hidden sm:block" />
+                    <span className="hidden sm:block" />
+                    <span className="hidden sm:block" />
+                    <span
+                      className={cn(
+                        "font-mono font-bold text-right",
+                        isOverDti ? "text-red-400" : "text-purple-400",
+                      )}
+                    >
+                      {formatCurrency(summary.borrowingPower)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

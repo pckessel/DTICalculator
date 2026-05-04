@@ -178,6 +178,86 @@ export function computeFinancialSummary(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Waterfall breakdown
+// Each row's bpDelta uses the correct additive formula so that:
+//   startBP + sum(all row bpDeltas) == summary.borrowingPower (exact)
+//
+// Debt delta:     −payment / divisor
+// Property delta: (rev × bankRate × maxDti% − piti) / divisor
+//   (rental income only benefits you up to the DTI-limited fraction)
+// ---------------------------------------------------------------------------
+
+export type WaterfallRow = {
+  id: string;
+  label: string;
+  type: "debt" | "property";
+  netMonthlyCost: number; // positive = net cost, negative = net income
+  dtiDelta: number; // fraction (not percent)
+  bpDelta: number; // negative = costs BP, positive = adds BP
+  runningBP: number; // cumulative after this row
+};
+
+export type WaterfallResult = {
+  startBP: number;
+  rows: WaterfallRow[];
+};
+
+export function computeWaterfallRows(
+  incomeSources: IncomeSource[],
+  debtItems: DebtItem[],
+  investmentProperties: InvestmentProperty[],
+  loanParams: LoanParams,
+): WaterfallResult {
+  const mortgageFactor = computeMortgageFactor(loanParams.aprPercent, loanParams.loanTermYears);
+  const divisor = mortgageFactor + loanParams.taxesInsuranceRate / 100 / 12;
+  const maxDtiDecimal = loanParams.maxDtiPercent / 100;
+
+  const monthlyGrossIncome = computeMonthlyGrossIncome(incomeSources);
+  const activeProperties = investmentProperties.filter((p) => !p.saleDetails);
+  const adjustedIncome = computeAdjustedMonthlyIncome(incomeSources, activeProperties);
+
+  // Baseline: wage income only, zero debts, zero properties
+  const startBP = divisor > 0 ? (monthlyGrossIncome * maxDtiDecimal) / divisor : 0;
+
+  let running = startBP;
+  const rows: WaterfallRow[] = [];
+
+  for (const debt of debtItems) {
+    if (debt.monthlyPayment === 0) continue;
+    const bpDelta = -(debt.monthlyPayment / divisor);
+    running += bpDelta;
+    rows.push({
+      id: debt.id,
+      label: debt.label || "Debt",
+      type: "debt",
+      netMonthlyCost: debt.monthlyPayment,
+      dtiDelta: adjustedIncome > 0 ? debt.monthlyPayment / adjustedIncome : 0,
+      bpDelta,
+      runningBP: running,
+    });
+  }
+
+  for (const prop of activeProperties) {
+    const incomeContrib = prop.revenuePerMonth * prop.revenueCountedByBank * maxDtiDecimal;
+    const bpDelta = (incomeContrib - prop.mortgagePlusTaxesInsurance) / divisor;
+    const netMonthlyCost =
+      prop.mortgagePlusTaxesInsurance - prop.revenuePerMonth * prop.revenueCountedByBank;
+    running += bpDelta;
+    rows.push({
+      id: prop.id,
+      label: prop.label || "Property",
+      type: "property",
+      netMonthlyCost,
+      dtiDelta: adjustedIncome > 0 ? netMonthlyCost / adjustedIncome : 0,
+      bpDelta,
+      runningBP: running,
+    });
+  }
+
+  return { startBP, rows };
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

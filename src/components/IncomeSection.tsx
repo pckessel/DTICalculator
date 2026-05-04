@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 import { useStore, type IncomeSource } from "../store/index";
 import { computeMonthlyGrossIncome } from "../lib/calculations";
@@ -5,13 +6,17 @@ import { formatCurrency } from "../lib/calculations";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { cn } from "../lib/cn";
 
 type IncomeSectionProps = {
   scenarioId?: string;
 };
 
+type DisplayMode = "annual" | "monthly";
+
 export function IncomeSection({ scenarioId }: IncomeSectionProps) {
   const store = useStore();
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("annual");
 
   const incomeSources: IncomeSource[] = scenarioId
     ? (store.scenarios.find((s) => s.id === scenarioId)?.incomeSources ?? [])
@@ -45,12 +50,41 @@ export function IncomeSection({ scenarioId }: IncomeSectionProps) {
 
   return (
     <section className="mb-8">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-200">Income</h2>
-        <Button variant="outline" size="sm" onClick={addIncome}>
-          <Plus size={14} />
-          Add Income Source
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Annual / Monthly toggle */}
+          <div className="flex rounded-md border border-gray-700 text-xs overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setDisplayMode("annual")}
+              className={cn(
+                "px-2.5 py-1 transition-colors",
+                displayMode === "annual"
+                  ? "bg-purple-600 text-white"
+                  : "text-gray-400 hover:text-gray-200",
+              )}
+            >
+              Annual
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisplayMode("monthly")}
+              className={cn(
+                "px-2.5 py-1 transition-colors",
+                displayMode === "monthly"
+                  ? "bg-purple-600 text-white"
+                  : "text-gray-400 hover:text-gray-200",
+              )}
+            >
+              Monthly
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={addIncome}>
+            <Plus size={14} />
+            Add Income Source
+          </Button>
+        </div>
       </div>
 
       {incomeSources.length === 0 && (
@@ -76,17 +110,30 @@ export function IncomeSection({ scenarioId }: IncomeSectionProps) {
               />
             </div>
             <div className="w-40 space-y-1">
-              <Label htmlFor={`income-amount-${source.id}`}>Annual Amount ($)</Label>
+              <Label htmlFor={`income-amount-${source.id}`}>
+                {displayMode === "annual" ? "Annual ($)" : "Monthly ($)"}
+              </Label>
               <Input
                 id={`income-amount-${source.id}`}
                 data-testid="income-amount-input"
                 type="number"
                 min="0"
                 placeholder="0"
-                value={source.annualAmount === 0 ? "" : source.annualAmount}
+                value={
+                  displayMode === "annual"
+                    ? source.annualAmount === 0
+                      ? ""
+                      : source.annualAmount
+                    : source.annualAmount === 0
+                      ? ""
+                      : Math.round(source.annualAmount / 12)
+                }
                 onChange={(e) => {
-                  const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-                  if (!isNaN(val)) updateIncome(source.id, "annualAmount", val);
+                  const raw = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                  if (!isNaN(raw)) {
+                    const annual = displayMode === "annual" ? raw : raw * 12;
+                    updateIncome(source.id, "annualAmount", annual);
+                  }
                 }}
               />
             </div>
