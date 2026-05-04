@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { CircleHelp, X } from "lucide-react";
+import { X } from "lucide-react";
 
 export const Route = createRootRoute({ component: RootLayout });
 
@@ -35,14 +35,12 @@ function RootLayout() {
           Scenarios
         </Link>
 
-        {/* Right-aligned help button */}
         <button
           type="button"
           onClick={() => setHelpOpen(true)}
-          className="ml-auto text-gray-600 hover:text-purple-400 transition-colors"
-          aria-label="How this works"
+          className="ml-auto text-sm text-gray-400 hover:text-white transition-colors"
         >
-          <CircleHelp size={18} />
+          WTF?
         </button>
       </nav>
 
