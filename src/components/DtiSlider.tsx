@@ -5,10 +5,10 @@ export const DTI_MIN = 10;
 // 45% = Fannie Mae / Freddie Mac manual-underwriting ceiling for conventional conforming loans
 export const DTI_MAX = 45;
 
-// Zone boundaries (research-backed):
-//   ≤36% — Safe (classic 28/36 rule; FIRE community target)
-//   36–43% — Moderate (standard lender comfort zone)
-//   >43% — Aggressive (at the conventional ceiling; rare approvals only)
+// Zone boundaries (NerdWallet, Bankrate, Chase, CFPB consensus):
+//   ≤36% — Safe (the 28/36 rule; NerdWallet/Bankrate/Chase all say under 36% is "good")
+//   36–43% — Caution (lenders still approve here, but multiple sources flag it as elevated)
+//   >43% — Aggressive (Bankrate: "a lot of debt"; requires compensating factors)
 const GREEN_END = 36;
 const ORANGE_END = 43;
 
@@ -19,11 +19,11 @@ function dtiToTrackPct(val: number): number {
 const GREEN_STOP = dtiToTrackPct(GREEN_END); // ~74.3%
 const ORANGE_STOP = dtiToTrackPct(ORANGE_END); // ~94.3%
 
-type Zone = "safe" | "moderate" | "aggressive";
+type Zone = "safe" | "caution" | "aggressive";
 
 export function getDtiZone(value: number): Zone {
   if (value <= GREEN_END) return "safe";
-  if (value <= ORANGE_END) return "moderate";
+  if (value <= ORANGE_END) return "caution";
   return "aggressive";
 }
 
@@ -35,8 +35,8 @@ const ZONE_META: Record<Zone, { label: string; textCls: string; borderCls: strin
       borderCls: "border-green-400",
       glow: "#4ade8040",
     },
-    moderate: {
-      label: "Moderate",
+    caution: {
+      label: "Caution",
       textCls: "text-amber-400",
       borderCls: "border-amber-400",
       glow: "#fbbf2440",
@@ -136,7 +136,7 @@ export function DtiSlider({ value, onChange, instanceId }: DtiSliderProps) {
         </span>
         <span className="flex items-center gap-1 text-amber-500/80">
           <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-          36–43% Moderate
+          36–43% Caution
         </span>
         <span className="flex items-center gap-1 text-red-500/80">
           <span className="inline-block h-2 w-2 rounded-full bg-red-500" />

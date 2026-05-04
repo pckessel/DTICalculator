@@ -143,7 +143,7 @@ export function LoanParamsPanel({ scenarioId }: LoanParamsPanelProps) {
             <div className="space-y-2 sm:col-span-2 lg:col-span-3">
               <div className="flex items-center gap-1.5">
                 <Label>DTI Target Range</Label>
-                <InfoTooltip text="Most lenders approve up to 45%. Setting your target at 40% gives you a comfortable buffer and leaves room for the unexpected." />
+                <InfoTooltip text="The classic 28/36 rule says keep total debt below 36% of income — NerdWallet, Bankrate, and Chase all call anything under 36% genuinely good. The 36–43% range is where lenders will still approve you, but it's a caution zone, not comfortable. Above 43% requires compensating factors like strong credit or large reserves." />
               </div>
               <DtiSlider
                 instanceId={scenarioId ?? "base"}
