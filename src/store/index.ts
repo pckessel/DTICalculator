@@ -87,6 +87,7 @@ type AppState = {
   updateLoanParams: (updates: Partial<LoanParams>) => void;
 
   setCashOnHand: (amount: number | undefined) => void;
+  setScenarioCashOnHand: (scenarioId: string, amount: number | undefined) => void;
 
   // Scenario actions
   createScenario: (name: string) => void;
@@ -216,6 +217,14 @@ export const useStore = create<AppState>()(
         })),
 
       setCashOnHand: (amount) => set({ cashOnHand: amount }),
+
+      setScenarioCashOnHand: (scenarioId, amount) =>
+        set((state) => ({
+          scenarios: updateScenarioById(state.scenarios, scenarioId, (s) => ({
+            ...s,
+            cashOnHand: amount,
+          })),
+        })),
 
       // Scenario actions
       createScenario: (name) => {
