@@ -542,6 +542,36 @@ There is no limit on sales per scenario. Each sale's proceeds compound: selling 
 
 ---
 
+### Info Panel (`?` Modal)
+
+A `?` icon button in the top navigation bar opens a modal overlay explaining what the tool does and how to use it. The modal is dismissible (click outside or press Escape).
+
+**Trigger:** A small `?` icon button, right-aligned in the nav header next to the app name.
+
+**Modal content:**
+
+> **What is this?**
+>
+> This tool shows you your **borrowing power** — the maximum mortgage you'd qualify for right now based on your debt-to-income ratio (DTI). Set up your baseline once: income, existing debts, loan parameters, and any investment properties you already own.
+>
+> Then comes the fun part. Head to **Scenarios** and start playing: add a rental property, sell one, pay off a loan, model a raise. Every change instantly shows you how your DTI shifts and whether your borrowing power goes up or down — without ever touching your saved profile. It's a real estate "what-if" machine.
+>
+> **The numbers that matter:**
+>
+> - **DTI** — your total monthly debt payments ÷ monthly income. Most lenders cap this around 43–50%.
+> - **Borrowing power** — the loan you can support while staying under your DTI limit.
+> - **Available monthly cash** — the room left in your budget for a new mortgage payment.
+>
+> _Everything stays in your browser. No account, no server._
+
+**Design notes:**
+
+- Modal background: dark overlay, consistent with app aesthetic
+- Icon: `CircleHelp` or similar from Lucide, small, unobtrusive
+- No auto-open on first load — passive discovery only
+
+---
+
 ## Smart Suggestions (UX Detail)
 
 When a user adds a property, pre-fill suggestions for calculated fields as placeholder text (not locked values):

@@ -89,7 +89,7 @@ function RootLayout() {
                 <ul className="space-y-1.5 text-gray-400">
                   <li>
                     <span className="text-white font-medium">DTI</span> — your total monthly debt
-                    payments ÷ monthly income. Most lenders cap this around 43–50%.
+                    payments ÷ monthly income. Most lenders cap this around 40-45%.
                   </li>
                   <li>
                     <span className="text-white font-medium">Borrowing power</span> — the loan you
